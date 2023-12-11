@@ -30,6 +30,7 @@ impl Battle {
             if self.current_attackers.is_empty() || self.current_defenders.is_empty() { return }
             self.compute_round();
             self.round_cleanup();
+            self.print_result();
             // println!("\n===\n{:#?}\n===\n", self);
         }
     }
@@ -81,23 +82,19 @@ impl Battle {
     }
 
     fn compute_round(&mut self) {
-        self.current_attackers.iter().for_each(|&u| Self::compute_unit_turn(u, &mut self.current_defenders));
-        self.current_defenders.iter().for_each(|&u| Self::compute_unit_turn(u, &mut self.current_attackers));
+        self.current_attackers.iter().for_each(|u| Self::compute_unit_turn(u, &mut self.current_defenders));
+        self.current_defenders.iter().for_each(|u| Self::compute_unit_turn(u, &mut self.current_attackers));
     }
 
-    fn compute_unit_turn(unit: Unit, targets: &mut Vec<Unit>) {
-        let mut atk_probability = 1.0;
-        while atk_probability > 0.0 && random::<f32>() < atk_probability {
-            let target = Self::attack_random_target(unit, targets);
-            let rapid_fire = unit.get_rapidfire(target) as f32;
-            atk_probability = (rapid_fire - 1.0) / rapid_fire;
-        }
+    fn compute_unit_turn(unit: &Unit, targets: &mut Vec<Unit>) {
+        while Self::attack_random_target(unit, targets) {}
     }
 
-    fn attack_random_target(unit: Unit, targets: &mut Vec<Unit>) -> Unit {
-        let choice = targets.choose_mut(&mut rand::thread_rng()).unwrap();
-        unit.attack(choice);
-        return *choice
+    fn attack_random_target<'a>(unit: &Unit, targets: &'a mut Vec<Unit>) -> bool {
+        let target = targets.choose_mut(&mut rand::thread_rng()).unwrap();
+        unit.attack(target);
+        let rapid_fire = unit.get_rapidfire(target) as f32;
+        rapid_fire > 1.0 && random::<f32>() < (rapid_fire - 1.0) / rapid_fire
     }
 
     fn round_cleanup(&mut self) {

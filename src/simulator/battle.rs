@@ -30,7 +30,7 @@ impl Battle {
             if self.current_attackers.is_empty() || self.current_defenders.is_empty() { return }
             self.compute_round();
             self.round_cleanup();
-            self.print_result();
+            // self.print_result();
             // println!("\n===\n{:#?}\n===\n", self);
         }
     }
@@ -66,10 +66,10 @@ impl Battle {
             self.reset();
             self.run();
             for unit in &self.current_attackers {
-                *attacker_counts.entry(unit.to_string()).or_insert(0.0) += 1.0 / rounds as f32;
+                *attacker_counts.entry(unit.to_string()).or_insert(0.0) += 1.0 / rounds as f64;
             }
             for unit in &self.current_defenders {
-                *defender_counts.entry(unit.to_string()).or_insert(0.0) += 1.0 / rounds as f32;
+                *defender_counts.entry(unit.to_string()).or_insert(0.0) += 1.0 / rounds as f64;
             }
         }
 
@@ -98,9 +98,10 @@ impl Battle {
     }
 
     fn round_cleanup(&mut self) {
-        self.current_attackers.retain(|u| !u.has_exploded());
-        self.current_defenders.retain(|u| !u.has_exploded());
-        self.current_attackers.iter_mut().for_each(|u| u.restore_shield());
-        self.current_defenders.iter_mut().for_each(|u| u.restore_shield());
+        let explosion_threshold = random::<f64>();
+        self.current_attackers.retain(|u| u.survives(explosion_threshold));
+        self.current_defenders.retain(|u| u.survives(explosion_threshold));
+        self.current_attackers.iter_mut().for_each(|u| u.round_reset());
+        self.current_defenders.iter_mut().for_each(|u| u.round_reset());
     }
 }

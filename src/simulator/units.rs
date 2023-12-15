@@ -21,13 +21,13 @@ pub struct UnitStats {
 
     hull: i32,
     shield: i32,
-    exploded: bool,
+    survival_chance: f64,
 }
 
 impl UnitStats {
 
     pub fn new(hull: i32, shield: i32, atk: i32) -> Self {
-        Self { base_hull: hull, base_shield: shield, base_atk: atk, hull, shield, exploded: false }
+        Self { base_hull: hull, base_shield: shield, base_atk: atk, hull, shield, survival_chance: 1.0 }
     }
 
     pub fn apply_techs(&self, techs: &BattleTechs) -> Self {
@@ -54,15 +54,17 @@ impl UnitStats {
         self.hull -= (rounded_dmg - self.shield).max(0);
         self.shield = (self.shield - rounded_dmg).max(0);
 
-        self.check_explosion();
-    }
-
-    fn check_explosion(&mut self) {
-        let explosion_prob = 1.0 - (self.hull as f32) / (self.base_hull as f32);
-        if explosion_prob > 0.3 && random::<f32>() < explosion_prob {
-            self.exploded = true;
+        if self.survival_chance > 1e-9 {
+            let remaining_hull = (self.hull.max(0) as f64) / (self.base_hull as f64);
+            self.survival_chance *= if remaining_hull >= 0.7 { 1.0 } else { remaining_hull };
         }
     }
+
+    pub fn round_reset(&mut self) {
+        self.shield = self.base_shield;
+        self.survival_chance = 1.0;
+    }
+
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -109,16 +111,16 @@ impl Unit {
         Unit { kind, stats }
     }
 
-    pub fn has_exploded(&self) -> bool { 
-        self.stats.exploded 
-    }
-
     pub fn attack(&self, unit: &mut Unit) { 
         unit.receive_damage(self.stats.base_atk) 
     }
 
-    pub fn restore_shield(&mut self) {
-        self.stats.shield = self.stats.base_shield
+    pub fn round_reset(&mut self) {
+        self.stats.round_reset();
+    }
+
+    pub fn survives(&self, explosion_threshold: f64) -> bool {
+        explosion_threshold < self.stats.survival_chance
     }
 
     pub fn get_rapidfire(&self, other: &Unit) -> i32 {
